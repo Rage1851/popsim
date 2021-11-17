@@ -1,2 +1,2 @@
 # popsim
-Not yet finished.
+Not yet finished. See master branch.
