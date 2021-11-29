@@ -4,113 +4,284 @@
  *   Organization: Technical University of Munich (TUM)
  */
 
+#include "popsim.h"
+#include "arrurn.h"
+#include "linurn.h"
+#include "bsturn.h"
+#include "aliurn.h"
+#include "coll.h"
+#include "hgeom.h"
+
 #include <stdlib.h>
 #include <math.h>
-#include <dyn_ali_tab.h>
+#include <time.h>
 
-typedef struct state_pair {
-    int init;
-    int resp;
-} state_pair;
+#define POPSIM_MIN(x,y) ((x) <= (y) ? (x) : (y))
+#define POPSIM_MAX(x,y) ((x) >= (y) ? (x) : (y))
 
-int sim_seq(agent_pair** map, int** dist, int state_count,
-        double alpha, double beta, int steps, int snapshot_count)
-{
-    if(steps < 1 || snapshot_count > steps)
-        return -1;
-    if(state_count < 1)
-        return -2;
-    if(alpha < 0 || alpha >= 1 || beta <= 1)
-        return -3;
+typedef struct timespec timespec;
 
-    dyn_ali_tab* table = alloc_dyn_ali_tab(dist[0], state_count, alpha, beta);
+void popsim_seqarr(arrurn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                   void (*delta)(ullong, ullong, ullong*, ullong*)) {
+    arrurn_dist(u, conf);
+    ullong cstep = nsteps / nconf;
+    ullong p1, q1, p2, q2;
+    for(ullong i = 1, j = 1; i <= nsteps; ++i) {
+        p1 = arrurn_draw(u); q1 = arrurn_draw(u); 
+        (*delta)(p1, q1, &p2, &q2); 
+        arrurn_cinsert(u, p2, 1); arrurn_cinsert(u, q2, 1);
 
-    double step_width = (double) steps / snapshots;
-    int snapshot = 1;
-    for(int step = 0; step < step_count; ++step) {
-        int state1 = sample_dyn_ali_tab(table); 
-        int state2 = sample_dyn_ali_tab(table);
-        update_dyn_ali_tab(table, map[state1][state2].init_state);
-        update_dyn_ali_tab(table, map[state1][state2].resp_state);
-
-        if((int) step_width == step) {
-            dist[snapshot++] = dist_dyn_ali_tab(table);
-            step_width += step_width;
-        }
+        if(j < nconf && i == j*cstep)
+            arrurn_dist(u, conf + (j++)*nstates);
     }
-
-    free_dyn_ali_tab(table);
-    return 0;
+    arrurn_dist(u, conf + nconf*nstates);
 }
 
+void popsim_seqlin(linurn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                   void (*delta)(ullong, ullong, ullong*, ullong*)) {
+    memcpy(conf, linurn_dist(u), nstates * sizeof(ullong));
+    ullong cstep = nsteps / nconf;
+    ullong p1, q1, p2, q2;
+    for(ullong i = 1, j = 1; i <= nsteps; ++i) {
+        p1 = linurn_draw(u); q1 = linurn_draw(u); 
+        (*delta)(p1, q1, &p2, &q2); 
+        linurn_cinsert(u, p2, 1); linurn_cinsert(u, q2, 1);
 
-int sim_batch(state_pair (*trans)(int, int), int* init_state_dist, int* final_state_dist,
-                          int state_count, int step_count) {
-    if(dist == NULL)     return -1;
-    if(state_count < 1)  return -2;
-    if(step_count  < 1)  return -3;
+        if(j < nconf && i == j*cstep)
+            memcpy(conf + (j++)*nstates, linurn_dist(u), nstates * sizeof(ullong));
+    }
+    memcpy(conf + nconf*nstates, linurn_dist(u), nstates * sizeof(ullong));
+}
 
-    linear_urn* urn_old = NULL;
-    linear_urn* urn_new = NULL;
-    build_from_dist_linear_urn(urn_old, dist, state_count);
-    build_empty_linear_urn(urn_new, dist, state_count);
+void popsim_seqbst(bsturn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                   void (*delta)(ullong, ullong, ullong*, ullong*)) {
+    memcpy(conf, bsturn_dist(u), nstates * sizeof(ullong));
+    ullong cstep = nsteps / nconf;
+    ullong p1, q1, p2, q2;
+    for(ullong i = 1, j = 1; i <= nsteps; ++i) {
+        p1 = bsturn_draw(u); q1 = bsturn_draw(u); 
+        (*delta)(p1, q1, &p2, &q2); 
+        bsturn_cinsert(u, p2, 1); bsturn_cinsert(u, q2, 1);
 
-    int* state_dist = (int*) malloc(state_count * sizeof(int));
-    int* q_row_dist = (int*) malloc(state_count * sizeof(int));
-    int* q_col_dist = (int*) malloc(state_count * sizeof(int));
-    size_t state1, state2;
+        if(j < nconf && i == j*cstep)
+            memcpy(conf + (j++)*nstates, bsturn_dist(u), nstates * sizeof(ullong));
+    }
+    memcpy(conf + nconf*nstates, bsturn_dist(u), nstates * sizeof(ullong));
+}
 
-    for(int step = 0, coll; step < step_count; step += coll+1) {
-        coll = sample_coll(get_marble_count_linear_urn(urn_old), 0);
-        get_color_dist_linear_urn(urn_old, state_dist);
+void popsim_seqali(aliurn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                   void (*delta)(ullong, ullong, ullong*, ullong*)) {
+    aliurn_dist(u, conf);
+    ullong cstep = nsteps / nconf;
+    ullong p1, q1, p2, q2;
+    for(ullong i = 1, j = 1; i <= nsteps; ++i) {
+        p1 = aliurn_draw(u); q1 = aliurn_draw(u); 
+        (*delta)(p1, q1, &p2, &q2); 
+        aliurn_cinsert(u, p2, 1); aliurn_cinsert(u, q2, 1);
 
-        // Cannot group all together because this would require O(Q^2logn) bits of space
-        sample_multi_hypergeom(state_dist, q_row_dist, agent_count, state_count, coll);
-        for(size_t row_state = 0; row_state < state_count; ++row_state) {
-            remove_marbles_linear_urn(urn, row_state, q_row_dist[row_state]);
+        if(j < nconf && i == j*cstep)
+            aliurn_dist(u, conf + (j++)*nstates);
+    }
+    aliurn_dist(u, conf + nconf*nstates);
+}
 
-            sample_multi_hypergeom(q_col_dist, agent_count, state_count, q_row_dist[state]);
-            remove_list_of_marbles_linear_urn(urn_old, q_col_dist);
-            memset(state_dist, 0, state_count * sizeof(int));
-            for(size_t col_state = 0; col_state < state_count; ++col_state) {
-                state_pair res = trans(row_state, col_state);
-                ++state_dist[res.fst];
-                ++state_dist[res.scd];
+int popsim_batch(linurn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                 void (*delta)(ullong, ullong, ullong*, ullong*),
+                 ullong seed1, ullong seed2, ullong seed3) {
+    linurn_t* un = linurn_create(seed1, nstates);
+    if(un == NULL) return 0;
+
+    ullong* ic = (ullong*) malloc(nstates * sizeof(ullong));
+    if(ic == NULL) return 0;
+    ullong* rc = (ullong*) malloc(nstates * sizeof(ullong));
+    if(rc == NULL) return 0;
+
+    ullong p1, p2;
+    ullong q1, q2;
+    
+    ullong l;
+    coll_t c;
+    coll_seed(&c, seed2);
+    coll_setnr(&c, linurn_nmarbles(u), 0);
+
+    mt_t mt;
+    mt_init(&mt, seed3);
+
+    memcpy(conf, linurn_dist(u), nstates * sizeof(ullong));
+    ullong cstep = nsteps / nconf;
+    ullong j = 1;
+    for(ullong i = 1; i <= nsteps;) {
+        do {
+            l = coll_coll(&c); 
+        } while(l < 2);
+
+        mhgeom(&mt, ic, linurn_dist(u), nstates, linurn_nmarbles(u), l/2);
+        linurn_remove(u, ic);
+        for(p1 = 0; p1 < nstates; ++p1) {
+            mhgeom(&mt, rc, linurn_dist(u), nstates, linurn_nmarbles(u), ic[p1]);
+            linurn_remove(u, rc);
+
+            for(q1 = 0; q1 < nstates; ++q1) {
+                (*delta)(p1, q1, &p2, &q2); 
+                linurn_cinsert(un, p2, rc[q1]);
+                linurn_cinsert(un, q2, rc[q1]);
             }
-            add_list_of_marbles_linear_urn(urn_old, state_dist);
         }
 
-        if(coll % 2 == 0) {
-            sample_linear_urn(urn_new, &state1);
-
-            // Merging urn_new into urn_old
-            get_color_dist_linear_urn(urn_new, state_dist);
-            add_list_of_marbles_linear_urn(urn_old, state_dist);
-            remove_all_marbles_linear_urn(urn_new);
-
-            sample_linear_urn(urn_old, &state2);
+        if(l%2 == 0) {
+            p1 = linurn_draw(un);
+            linurn_insert(u, linurn_dist(un));
+            q1 = linurn_draw(u);
         } else {
-            sample_linear_urn(urn_old, &state1);
-            sample_linear_urn(urn_new, &state2);
-
-            // Merging urn_new into urn_old
-            get_color_dist_linear_urn(urn_new, state_dist);
-            add_list_of_marbles_linear_urn(urn_old, state_dist);
-            remove_all_marbles_linear_urn(urn_new);
+            p1 = linurn_draw(u);
+            q1 = linurn_draw(un);
+            linurn_insert(u, linurn_dist(un));
         }
 
-        state_pair res = trans(state1, state2);
-        add_marbles_linear_urn(linear_urn* urn, state1, state2);
-    }
+        (*delta)(p1, q1, &p2, &q2); 
+        linurn_cinsert(u, p2, 1);
+        linurn_cinsert(u, q2, 1);
+        linurn_empty(un);
 
-    destroy_linear_urn(urn_old);
-    destroy_linear_urn(urn_new);
-    free(state_dist);
-    free(q_row_dist);
-    free(q_col_dist);
-    return 0;
+        i += l/2+1;
+        while(j < nconf && i >= j*cstep)
+            memcpy(conf + (j++)*nstates, linurn_dist(u), nstates * sizeof(ullong));
+    }
+    while(j <= nconf)
+        memcpy(conf + (j++)*nstates, linurn_dist(u), nstates * sizeof(ullong));
+
+    linurn_destroy(un);
+    free(ic); free(rc);
+    return 1;
 }
 
-void sim_multibatch(pair_map** map, int) {
-    // TODO
+int popsim_mbatch(bsturn_t* u, ullong nsteps, ullong nstates, ullong nconf, ullong* conf,
+                   void (*delta)(ullong, ullong, ullong*, ullong*),
+                   ullong seed1, ullong seed2, ullong seed3) {
+    bsturn_t* un = bsturn_create(seed1, nstates);
+    if(un == NULL) return 0;
+
+    ullong* ic = (ullong*) malloc(nstates * sizeof(ullong));
+    if(ic == NULL) return 0;
+    ullong* rc = (ullong*) malloc(nstates * sizeof(ullong));
+    if(rc == NULL) return 0;
+
+    ullong p1, p2;
+    ullong q1, q2;
+    ullong r1, r2;
+
+    ullong l;
+    coll_t c;
+    coll_seed(&c, seed2);
+    coll_setn(&c, bsturn_nmarbles(u));
+
+    mt_t mt;
+    mt_init(&mt, seed3);
+
+    ullong epoch = (nstates*(ldouble) nstates) / (log(bsturn_nmarbles(u))/log(2.L));
+    epoch = POPSIM_MAX(epoch, 1);
+    int dir = 1;
+    timespec starttp, endtp;
+    ldouble pput = 0.L, cput = 0.L;
+
+    int fstcoll, scdcoll;
+    memcpy(conf, bsturn_dist(u), nstates * sizeof(ullong));
+    ullong cstep = nsteps / nconf;
+    ullong j = 1;
+    for(ullong i = 1, k = 0, t = 0; i <= nsteps; k = 0, t = 0) {
+        pput = cput;
+        clock_gettime(CLOCK_REALTIME, &starttp);
+
+        for(ullong e = 0; e < epoch && bsturn_nmarbles(u) > 0; ++e) {
+            coll_setr(&c, t + bsturn_nmarbles(un));
+            do {
+                l = coll_coll(&c); 
+            } while((t + bsturn_nmarbles(un) == 0) && l < 2);
+            t += 2*(l/2);
+
+            fstcoll = (l%2 == 0);
+            scdcoll = (fstcoll == 0) || mt_urand(&mt, bsturn_nmarbles(u)) < t;
+
+            if(fstcoll) {
+                if(mt_urand(&mt, t + bsturn_nmarbles(un)) < t) {
+                    p1 = bsturn_draw(u);
+                    r1 = bsturn_draw(u);
+                    (*delta)(p1, r1, &p2, &r2); k++;
+
+                    if(mt_real1(&mt) <= 0.5L) {
+                        bsturn_cinsert(un, r2, 1);
+                        p1 = p2;
+                    } else {
+                        bsturn_cinsert(un, p2, 1);
+                        p1 = r2;
+                    }
+                    t -= 2;
+                } else {
+                    p1 = bsturn_draw(un);
+                }
+            } else {
+                p1 = bsturn_draw(u);
+            }
+
+            if(scdcoll) {
+                if(mt_urand(&mt, t + bsturn_nmarbles(un)) < t) {
+                    q1 = bsturn_draw(u);
+                    r1 = bsturn_draw(u);
+                    (*delta)(r1, q1, &r2, &q2); k++;
+
+                    if(mt_real1(&mt) <= 0.5L) {
+                        bsturn_cinsert(un, r2, 1);
+                        q1 = q2;
+                    } else {
+                        bsturn_cinsert(un, q2, 1);
+                        q1 = r2;
+                    }
+                    t -= 2;
+                } else {
+                    q1 = bsturn_draw(un);
+                }
+            } else {
+                q1 = bsturn_draw(u);
+            }
+            
+            (*delta)(p1, q1, &p2, &q2);
+            bsturn_cinsert(un, p2, 1);
+            bsturn_cinsert(un, q2, 1);
+            k++;
+        }
+
+        mhgeom(&mt, ic, bsturn_dist(u), nstates, bsturn_nmarbles(u), t/2);
+        bsturn_remove(u, ic);
+        for(p1 = 0; p1 < nstates; ++p1) {
+            mhgeom(&mt, rc, bsturn_dist(u), nstates, bsturn_nmarbles(u), ic[p1]);
+            bsturn_remove(u, rc);
+
+            for(q1 = 0; q1 < nstates; ++q1) {
+                (*delta)(p1, q1, &p2, &q2); 
+                bsturn_cinsert(un, p2, rc[q1]);
+                bsturn_cinsert(un, q2, rc[q1]);
+            }
+        }
+
+        bsturn_insert(u, bsturn_dist(un));
+        k += t/2;
+        bsturn_empty(un);
+
+        clock_gettime(CLOCK_REALTIME, &endtp);
+        cput = k / ((endtp.tv_sec-starttp.tv_sec) + (endtp.tv_nsec-starttp.tv_nsec)*1e-9);
+        if(cput < pput)
+            dir *= -1;
+        epoch += dir;
+        epoch = POPSIM_MAX(epoch, 1);
+        
+        i += k;
+        while(j < nconf && i >= j*cstep)
+            memcpy(conf + (j++)*nstates, bsturn_dist(u), nstates * sizeof(ullong));
+    }
+    while(j <= nconf)
+        memcpy(conf + (j++)*nstates, bsturn_dist(u), nstates * sizeof(ullong));
+
+    bsturn_destroy(un);
+    free(ic); free(rc);
+    return 1;
 }

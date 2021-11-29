@@ -15,7 +15,7 @@
 typedef unsigned long long ullong;
 typedef long double        ldouble;
 
-#define LFAC_NLOOKUP     100
+#define LFAC_NLOOKUP     100LLU
 #define LFAC_LN_SQRT_2PI 0.91893853320467278056327131707803346216678619384765625L
 #define LFAC_ONEDIV12    0.08333333333333332870740406406184774823486804962158203125L
 #define LFAC_ONEDIV360   0.0027777777777777778837886568652493224362842738628387451171875L
@@ -129,7 +129,7 @@ static const ldouble lfac_lookup[] = {
  */
 static inline ldouble lfac(ullong n) {
     return (n <= LFAC_NLOOKUP) ? lfac_lookup[n] :
-        LFAC_LN_SQRT_2PI + (n+0.5L)*log(n)-n + (LFAC_ONEDIV12-(LFAC_ONEDIV360/((1.*n)*n)))/n;
+        LFAC_LN_SQRT_2PI + (n+0.5L)*log(n)-n + (LFAC_ONEDIV12-(LFAC_ONEDIV360/((1.L*n)*n)))/n;
 }
 
 #endif

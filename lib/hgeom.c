@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <math.h>
+#include "hgeom.h"
 #include "lfac.h"
 #include "mt.h"
 
@@ -48,10 +49,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // D2 = 3 - 2*sqrt(3/e)
 #define D1 1.7155277699214135
 #define D2 0.8989161620588988
-#define MIN(x,y) ((x)<=(y) ? (x) : (y))
-#define MAX(x,y) ((x)>=(y) ? (x) : (y))
-
-typedef long double lldouble;
+#define HGEOM_MIN(x,y) ((x)<=(y) ? (x) : (y))
+#define HGEOM_MAX(x,y) ((x)>=(y) ? (x) : (y))
 
 static ullong hgeom_sample(mt_t* mt, ullong good, ullong bad, ullong sample){
     ullong remaining_total, remaining_good, result, computed_sample;
@@ -86,9 +85,9 @@ static ullong hgeom_hrua(mt_t* mt, ullong good, ullong bad, ullong sample){
     ullong m, K;
 
     popsize = good + bad;
-    computed_sample = MIN(sample, popsize - sample);
-    mingoodbad = MIN(good, bad);
-    maxgoodbad = MAX(good, bad);
+    computed_sample = HGEOM_MIN(sample, popsize - sample);
+    mingoodbad = HGEOM_MIN(good, bad);
+    maxgoodbad = HGEOM_MAX(good, bad);
 
     p = ((ldouble) mingoodbad) / popsize;
     q = ((ldouble) maxgoodbad) / popsize;
@@ -108,7 +107,7 @@ static ullong hgeom_hrua(mt_t* mt, ullong good, ullong bad, ullong sample){
     g = (lfac(m) + lfac(mingoodbad - m) + lfac(computed_sample - m) +
          lfac(maxgoodbad - computed_sample + m));
 
-    b = MIN(MIN(computed_sample, mingoodbad) + 1, floor(a + 16*c));
+    b = HGEOM_MIN(HGEOM_MIN(computed_sample, mingoodbad) + 1, floor(a + 16*c));
 
     while (1) {
         ldouble U, V, X, T;
@@ -144,8 +143,8 @@ static ullong hgeom_hrua(mt_t* mt, ullong good, ullong bad, ullong sample){
     return K;
 }
 
-ullong hgeom(mt_t* mt, ullong total, ullong good, ullong sample){
-    if ((sample >= 10) && (sample <= total - 10))
+ullong hgeom(mt_t* mt, ullong total, ullong good, ullong sample) {
+    if ((sample >= 10LLU) && (sample <= total - 10LLU))
         return hgeom_hrua(mt, good, total-good, sample);
     else
         return hgeom_sample(mt, good, total-good, sample);
@@ -153,9 +152,19 @@ ullong hgeom(mt_t* mt, ullong total, ullong good, ullong sample){
 
 void mhgeom(mt_t* mt, ullong* destdist, ullong* srcdist,
                    ullong ncolors, ullong total, ullong sample) {
-    for(ullong c = 0; c < ncolors; ++c) {
+    ullong c = 0LLU;
+    for(; c < ncolors-1; ++c) {
+        if(sample == 0LLU)
+            break;
         ullong x = hgeom(mt, total, srcdist[c], sample);
         destdist[c] = x;
-        if((total -= x) == 0) break;
+        total      -= srcdist[c];
+        sample     -= x;
+    }
+    if(c == ncolors-1LLU) {
+        destdist[c] = sample;
+    } else {
+        for(; c < ncolors; ++c)
+            destdist[c] = 0LLU;
     }
 }

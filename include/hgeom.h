@@ -18,11 +18,15 @@ typedef unsigned long long ullong;
 
 /*
  *  Description: Samples from the hypergeometric distribution.
+ *  Assumptions: max(good,sample) <= total and total >= 1
  */
 ullong hgeom(mt_t* mt, ullong total, ullong good, ullong sample);
 
 /*
  *  Description: Samples from the multivariate hypergeometric distribution.
+ *  Assumptions: destdist and srcdist must hold ncolors elements where the index corresponds to
+ *               a color. Additionally, sample <= total, total >= 1, ncolors >= 1, and all colors
+ *               of srcdist must add up to total.
  */
 void mhgeom(mt_t* mt, ullong* destdist, ullong* srcdist,
             ullong ncolors, ullong total, ullong sample);

@@ -22,11 +22,11 @@ typedef unsigned long      ulong;
 typedef unsigned long long ullong;
 
 typedef enum arrurn_size_t {
-    BYTE,
-    SHORT,
-    INT,
-    LONG,
-    LLONG,
+    ARRURN_BYTE,
+    ARRURN_SHORT,
+    ARRURN_INT,
+    ARRURN_LONG,
+    ARRURN_LLONG,
 } arrurn_size_t;
 
 // Should be treated as opaque.
@@ -64,17 +64,17 @@ arrurn_t* arrurn_copy(arrurn_t* u, ullong seed);
 /*
  *    Description: Sample a marble with or without replacement as long as there is a marble in
  *                 the urn.
- *   Return value: The color of the sampled marble or ULONG_MAX to indicate an empty urn.
+ *   Return value: The color of the sampled marble or ULLONG_MAX to indicate an empty urn.
  */
 static inline ullong arrurn_sample(arrurn_t* u) {
     if(u->nmarbles == 0) return ULONG_MAX;
 
     switch(u->size) {
-        case BYTE:  return u->bcolors [mt_urand(&(u->mt), u->nmarbles)];
-        case SHORT: return u->scolors [mt_urand(&(u->mt), u->nmarbles)];
-        case INT:   return u->icolors [mt_urand(&(u->mt), u->nmarbles)];
-        case LONG:  return u->lcolors [mt_urand(&(u->mt), u->nmarbles)];
-        case LLONG: return u->llcolors[mt_urand(&(u->mt), u->nmarbles)];
+        case ARRURN_BYTE:  return u->bcolors [mt_urand(&(u->mt), u->nmarbles)];
+        case ARRURN_SHORT: return u->scolors [mt_urand(&(u->mt), u->nmarbles)];
+        case ARRURN_INT:   return u->icolors [mt_urand(&(u->mt), u->nmarbles)];
+        case ARRURN_LONG:  return u->lcolors [mt_urand(&(u->mt), u->nmarbles)];
+        case ARRURN_LLONG: return u->llcolors[mt_urand(&(u->mt), u->nmarbles)];
         default: abort();
     }
 }
@@ -83,14 +83,29 @@ static inline ullong arrurn_draw(arrurn_t* u) {
     if(u->nmarbles == 0) return ULONG_MAX;
 
     ullong m = mt_urand(&(u->mt), u->nmarbles);
-    ullong c = u->scolors[m];
+    ullong c;
 
     switch(u->size) {
-        case BYTE:  u->bcolors[m]  = u->bcolors [--(u->nmarbles)]; break;
-        case SHORT: u->scolors[m]  = u->scolors [--(u->nmarbles)]; break;
-        case INT:   u->icolors[m]  = u->icolors [--(u->nmarbles)]; break;
-        case LONG:  u->lcolors[m]  = u->lcolors [--(u->nmarbles)]; break;
-        case LLONG: u->llcolors[m] = u->llcolors[--(u->nmarbles)]; break;
+        case ARRURN_BYTE:
+            c = u->bcolors[m];
+            u->bcolors[m]  = u->bcolors [--(u->nmarbles)];
+            break;
+        case ARRURN_SHORT:
+            c = u->scolors[m];
+            u->scolors[m]  = u->scolors [--(u->nmarbles)];
+            break;
+        case ARRURN_INT:
+            c = u->icolors[m];
+            u->icolors[m]  = u->icolors [--(u->nmarbles)];
+            break;
+        case ARRURN_LONG:
+            c = u->lcolors[m];
+            u->lcolors[m]  = u->lcolors [--(u->nmarbles)];
+            break;
+        case ARRURN_LLONG:
+            c = u->llcolors[m];
+            u->llcolors[m] = u->llcolors[--(u->nmarbles)];
+            break;
         default: abort();
     }
 
@@ -100,24 +115,23 @@ static inline ullong arrurn_draw(arrurn_t* u) {
 /*
  *    Description: Inserts new marbles of color color into the urn as long as there is space for
  *                 all of them.
- *   Return value: Non-zero if there was enough space for the marbles and zero otherwise.
  *    Assumptions: There has to be enough space in the urn for all marbles c < ncolors.
  */
 static inline void arrurn_cinsert(arrurn_t* u, ullong c, ullong q) {
     switch(u->size) {
-        case BYTE:
+        case ARRURN_BYTE:
             while(q--) u->bcolors [u->nmarbles++] = c;
             break;
-        case SHORT:
+        case ARRURN_SHORT:
             while(q--) u->scolors [u->nmarbles++] = c;
             break;
-        case INT:
+        case ARRURN_INT:
             while(q--) u->icolors [u->nmarbles++] = c;
             break;
-        case LONG:
+        case ARRURN_LONG:
             while(q--) u->lcolors [u->nmarbles++] = c;
             break;
-        case LLONG:
+        case ARRURN_LLONG:
             while(q--) u->llcolors[u->nmarbles++] = c;
             break;
         default:
@@ -141,7 +155,6 @@ void arrurn_empty(arrurn_t* u);
 /*
  *   Description: Getter function for the color distribution of a single color.
  *   Assumptions: c < ncolors.
- *  Return value: The color distribution of color or ULLONG_MAX on error.
  */
 ullong arrurn_cdist(arrurn_t* u, ullong c);
 

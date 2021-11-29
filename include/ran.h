@@ -17,12 +17,12 @@ typedef unsigned long long ullong;
 static ullong ran_u, ran_v, ran_w;
 
 static inline ullong ran(){
-    ran_v = 4101842887655102017LL;
+    ran_v = 4101842887655102017LLU;
     ran_w = 1;
 
-    ran_u = ran_u * 2862933555777941757LL + 7046029254386353087LL;
+    ran_u = ran_u * 2862933555777941757LLU + 7046029254386353087LLU;
     ran_v ^= ran_v >> 17; ran_v ^= ran_v << 31; ran_v ^= ran_v >> 8;
-    ran_w = 4294957665U*(ran_w & 0xffffffff) + (ran_w >> 32);
+    ran_w = 4294957665LLU*(ran_w & 0xffffffff) + (ran_w >> 32);
     ullong x = ran_u ^ (ran_u << 21); x ^= x >> 35; x ^= x << 4;
 
     return (x + ran_v) ^ ran_w;

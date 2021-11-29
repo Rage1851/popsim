@@ -24,7 +24,7 @@ typedef unsigned long long ullong;
 #define LCHILD(node)    ((node) << 1)
 #define RCHILD(node)    (((node) << 1)+1)
 #define ISLCHILD(node)  ((node) != ROOT ? (node)%2 == 0 : 0)
-#define IS_RCHILD(node) ((node) != ROOT ? (node)%2 != 0 : 0)
+#define ISRCHILD(node)  ((node) != ROOT ? (node)%2 != 0 : 0)
 #define PARENT(node)    (ISLCHILD(node) ? (node) >> 1 : ((node)-1) >> 1)
 
 typedef struct bsturn_t {
@@ -42,7 +42,8 @@ typedef struct bsturn_t {
 /*
  *   Description: Initialize and allocate the urn.
  *  Return value: Pointer to the initialized urn or NULL if an error occurred.
- *        Errors: ENOMEN if there was not enough memory for the urn.
+ *        Errors: ENOMEN if there was not enough memory for the urn and EDOM if
+ *                ncolors = ULLONG_MAX.
  */
 bsturn_t* bsturn_create(ullong seed, ullong ncolors);
 
@@ -56,7 +57,7 @@ bsturn_t* bsturn_copy(bsturn_t*, ullong seed);
 /*
  *   Description: Sampling with or without replacement as long as there are still marbles in the
  *                urn.
- *  Return value: The sampled color or ULONG_MAX if the urn was empty.
+ *  Return value: The sampled color or ULLONG_MAX if the urn was empty.
  */
 static inline ullong bsturn_sample(bsturn_t* u) {
     if(u->nmarbles == 0) return ULLONG_MAX;
@@ -64,15 +65,15 @@ static inline ullong bsturn_sample(bsturn_t* u) {
     ullong marble = mt_urand(&(u->mt), u->nmarbles);
     ullong node = ROOT;
     for(ullong lvl = 0; lvl < u->height; ++lvl) {
-          if(marble <= u->bst[node]) {
+          if(marble < u->bst[node]) {
               node = LCHILD(node);
           } else {
-              node = RCHILD(node);
               marble -= u->bst[node];
+              node = RCHILD(node);
           }
     }
 
-    return node - u->cstart;
+    return node-u->cstart;
 }
 
 static inline ullong bsturn_draw(bsturn_t* u) {
@@ -81,17 +82,18 @@ static inline ullong bsturn_draw(bsturn_t* u) {
     ullong marble = mt_urand(&(u->mt), u->nmarbles);
     ullong node = ROOT;
     for(ullong lvl = 0; lvl < u->height; ++lvl) {
-          if(marble <= u->bst[node]) {
+          if(marble < u->bst[node]) {
               u->bst[node]--;
               node = LCHILD(node);
           } else {
-              node = RCHILD(node);
               marble -= u->bst[node];
+              node = RCHILD(node);
           }
     }
     u->nmarbles--;
+    u->bst[node]--;
 
-    return node - u->cstart;
+    return node-u->cstart;
 }
 
 /*
@@ -99,8 +101,9 @@ static inline ullong bsturn_draw(bsturn_t* u) {
  *   Assumptions: c < ncolors and there is enough space in the urn.
  */
 static inline void bsturn_cinsert(bsturn_t* u, ullong c, ullong q) {
-    ullong node     = u->cstart+c;
+    ullong node   = u->cstart+c;
     u->bst[node] += q;
+    u->nmarbles  += q;
 
     do {
         if(ISLCHILD(node)) {
@@ -117,8 +120,9 @@ static inline void bsturn_cinsert(bsturn_t* u, ullong c, ullong q) {
  *   Assumptions: c < ncolors and there are enough marbles to be removed.
  */
 static inline void bsturn_cremove(bsturn_t* u, ullong c, ullong q) {
-    ullong node    = u->cstart+c;
+    ullong node   = u->cstart+c;
     u->bst[node] -= q;
+    u->nmarbles  -= q;
 
     do {
         if(ISLCHILD(node)) {
@@ -150,6 +154,7 @@ void bsturn_remove(bsturn_t* u, ullong* qs);
  *  Description: Removes all marbles, leaving an empty urn.
  */
 static inline void bsturn_empty(bsturn_t* u) {
+    u->nmarbles = 0;
     memset(u->bst, 0, u->nnodes * sizeof(ullong));
 }
 

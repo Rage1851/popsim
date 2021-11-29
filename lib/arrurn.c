@@ -21,31 +21,31 @@ arrurn_t* arrurn_create(ullong seed, ullong ncolors, ullong max_nmarbles) {
     arrurn_t* u = (arrurn_t*) malloc(sizeof(arrurn_t));
     if(u == NULL) return NULL;
 
-    u->nmarbles     = 0;
+    u->nmarbles     = 0LLU;
     u->max_nmarbles = max_nmarbles;
     u->ncolors      = ncolors;
 
     mt_init(&(u->mt), seed);
 
-    if(max_nmarbles > 0) {
+    if(max_nmarbles > 0LLU) {
         if(ncolors < UCHAR_MAX) {
-            u->size = BYTE;
+            u->size = ARRURN_BYTE;
             if((u->bcolors  = (ubyte*)  calloc(max_nmarbles, sizeof(ubyte)))  == NULL)
                 return NULL;
         } else if(ncolors < USHRT_MAX){
-            u->size = SHORT;
+            u->size = ARRURN_SHORT;
             if((u->scolors  = (ushort*) calloc(max_nmarbles, sizeof(ushort))) == NULL)
                 return NULL;
         } else if(ncolors < UINT_MAX){
-            u->size = INT;
+            u->size = ARRURN_INT;
             if((u->icolors  = (uint*)   calloc(max_nmarbles, sizeof(uint)))   == NULL)
                 return NULL;
         } else if(ncolors < ULONG_MAX){
-            u->size = LONG;
+            u->size = ARRURN_LONG;
             if((u->lcolors  = (ulong*)  calloc(max_nmarbles, sizeof(ulong)))  == NULL)
                 return NULL;
         } else {
-            u->size = LLONG;
+            u->size = ARRURN_LLONG;
             if((u->llcolors = (ullong*) calloc(max_nmarbles, sizeof(ullong))) == NULL)
                 return NULL;
         }
@@ -60,21 +60,21 @@ arrurn_t* arrurn_copy(arrurn_t* u, ullong seed) {
 
     ucopy->nmarbles = u->nmarbles;
 
-    if(u->ncolors > 0) {
+    if(u->ncolors > 0LLU) {
         switch(ucopy->size) {
-            case BYTE: 
+            case ARRURN_BYTE: 
                 memcpy(ucopy->bcolors,  u->bcolors,  u->max_nmarbles * sizeof(ubyte));
                 break;
-            case SHORT:
+            case ARRURN_SHORT:
                 memcpy(ucopy->scolors,  u->scolors,  u->max_nmarbles * sizeof(ushort));
                 break;
-            case INT:
+            case ARRURN_INT:
                 memcpy(ucopy->icolors,  u->icolors,  u->max_nmarbles * sizeof(uint));
                 break;
-            case LONG:
+            case ARRURN_LONG:
                 memcpy(ucopy->lcolors,  u->lcolors,  u->max_nmarbles * sizeof(ulong));
                 break;
-            case LLONG:
+            case ARRURN_LLONG:
                 memcpy(ucopy->llcolors, u->llcolors, u->max_nmarbles * sizeof(ullong));
                 break;
             default:
@@ -87,25 +87,30 @@ arrurn_t* arrurn_copy(arrurn_t* u, ullong seed) {
 
 void arrurn_insert(arrurn_t* u, ullong* qs) {
     switch(u->size) {
-        case BYTE:
-            for(ullong c = 0; c < u->ncolors; ++c)
-                while(qs[c]--) u->bcolors[u->nmarbles++] = c;
+        case ARRURN_BYTE:
+            for(ullong c = 0LLU; c < u->ncolors; ++c)
+                for(ullong i = 0LLU; i < qs[c]; ++i)
+                    u->bcolors[u->nmarbles++] = c;
             break;
-        case SHORT:
-            for(ullong c = 0; c < u->ncolors; ++c)
-                while(qs[c]--) u->scolors[u->nmarbles++] = c;
+        case ARRURN_SHORT:
+            for(ullong c = 0LLU; c < u->ncolors; ++c)
+                for(ullong i = 0LLU; i < qs[c]; ++i)
+                    u->scolors[u->nmarbles++] = c;
             break;
-        case INT:
-            for(ullong c = 0; c < u->ncolors; ++c)
-                while(qs[c]--) u->icolors[u->nmarbles++] = c;
+        case ARRURN_INT:
+            for(ullong c = 0LLU; c < u->ncolors; ++c)
+                for(ullong i = 0LLU; i < qs[c]; ++i)
+                    u->icolors[u->nmarbles++] = c;
             break;
-        case LONG:
-            for(ullong c = 0; c < u->ncolors; ++c)
-                while(qs[c]--) u->lcolors[u->nmarbles++] = c;
+        case ARRURN_LONG:
+            for(ullong c = 0LLU; c < u->ncolors; ++c)
+                for(ullong i = 0LLU; i < qs[c]; ++i)
+                    u->lcolors[u->nmarbles++] = c;
             break;
-        case LLONG:
-            for(ullong c = 0; c < u->ncolors; ++c)
-                while(qs[c]--) u->llcolors[u->nmarbles++] = c;
+        case ARRURN_LLONG:
+            for(ullong c = 0LLU; c < u->ncolors; ++c)
+                for(ullong i = 0LLU; i < qs[c]; ++i)
+                    u->llcolors[u->nmarbles++] = c;
             break;
         default:
             abort();
@@ -113,34 +118,34 @@ void arrurn_insert(arrurn_t* u, ullong* qs) {
 }
 
 void arrurn_empty(arrurn_t* u) {
-    u->nmarbles = 0;
+    u->nmarbles = 0LLU;
 }
 
 ullong arrurn_cdist(arrurn_t* u, ullong c) {
-    ullong q = 0;
+    ullong q = 0LLU;
     ullong nmarbles = u->nmarbles;
     switch(u->size) {
-        case BYTE:
+        case ARRURN_BYTE:
             while(nmarbles--)
                 if(u->bcolors[nmarbles] == c)
                     ++q;
             break;
-        case SHORT:
+        case ARRURN_SHORT:
             while(nmarbles--)
                 if(u->scolors[nmarbles] == c)
                     ++q;
             break;
-        case INT:
+        case ARRURN_INT:
             while(nmarbles--)
                 if(u->icolors[nmarbles] == c)
                     ++q;
             break;
-        case LONG:
+        case ARRURN_LONG:
             while(nmarbles--)
                 if(u->lcolors[nmarbles] == c)
                     ++q;
             break;
-        case LLONG:
+        case ARRURN_LLONG:
             while(nmarbles--)
                 if(u->llcolors[nmarbles] == c)
                     ++q;
@@ -155,19 +160,19 @@ ullong arrurn_cdist(arrurn_t* u, ullong c) {
 void arrurn_dist(arrurn_t* u, ullong* dist) {
     ullong nmarbles = u->nmarbles;
     switch(u->size) {
-        case BYTE:
+        case ARRURN_BYTE:
             while(nmarbles--) ++(dist[u->bcolors [nmarbles]]);
             break;
-        case SHORT:
+        case ARRURN_SHORT:
             while(nmarbles--) ++(dist[u->scolors [nmarbles]]);
             break;
-        case INT:
+        case ARRURN_INT:
             while(nmarbles--) ++(dist[u->icolors [nmarbles]]);
             break;
-        case LONG:
+        case ARRURN_LONG:
             while(nmarbles--) ++(dist[u->lcolors [nmarbles]]);
             break;
-        case LLONG:
+        case ARRURN_LLONG:
             while(nmarbles--) ++(dist[u->llcolors[nmarbles]]);
             break;
         default:
@@ -176,13 +181,13 @@ void arrurn_dist(arrurn_t* u, ullong* dist) {
 }
 
 void arrurn_destroy(arrurn_t* u) {
-    if(u->max_nmarbles > 0) {
+    if(u->max_nmarbles > 0LLU) {
         switch(u->size) {
-            case BYTE:  free(u->bcolors);  break;
-            case SHORT: free(u->scolors);  break;
-            case INT:   free(u->icolors);  break;
-            case LONG:  free(u->lcolors);  break;
-            case LLONG: free(u->llcolors); break;
+            case ARRURN_BYTE:  free(u->bcolors);  break;
+            case ARRURN_SHORT: free(u->scolors);  break;
+            case ARRURN_INT:   free(u->icolors);  break;
+            case ARRURN_LONG:  free(u->lcolors);  break;
+            case ARRURN_LLONG: free(u->llcolors); break;
             default: abort();
         }
     }

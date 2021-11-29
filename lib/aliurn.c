@@ -8,51 +8,8 @@
 #include "mt.h"
 
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 #include <errno.h>
-
-/*
- *  Alias Table Invariants
- *  M. D. Vose "A Linear Algorithm For Generating Random Numbers With a Given Distribution."
- *  In: IEEE Trans. Software Eng. 17.9 (1991), pp. 972-975. DOI: 10.1109/32.92917
- */
-void aliurn_rebuild(aliurn_t* u) {
-    // Check if invariants are violated
-    if(u->alpha * (u->nmarbles/u->ncolors) <= u->min_rweight &&
-            u->max_rweight <= u->beta * (ceil(u->nmarbles/(ldouble) u->ncolors)))
-        return;
-
-    u->min_rweight = u->nmarbles/u->ncolors;
-    u->max_rweight = ceil(u->nmarbles/(ldouble) u->ncolors);
-    aliurn_dist(u, u->dist);
-
-    ullong s = 0, l = 0;
-    memset(u->small, 0, u->ncolors * sizeof(ullong));
-    memset(u->large, 0, u->ncolors * sizeof(ullong));
-    for(ullong c = 0; c < u->ncolors; ++c) {
-        if(u->dist[c] > u->max_rweight) u->large[l++] = c;
-        else                            u->small[s++] = c;
-    }
-
-    for(--s, --l; s >= 0 && l >= 0; --s, --l) {
-        ullong j = u->small[s];
-        ullong k = u->large[s];
-        u->weight[j]  = u->dist[j];
-        u->aweight[j] = u->max_rweight - u->weight[j];
-        u->alias[j] = k;
-
-        u->dist[k] -+ u->aweight[j];
-        if(u->dist[k] > u->max_rweight) ++l;
-        else                            u->small[s++] = j;
-
-    }
-
-    for(; s >= 0; --s) {
-        u->weight[u->small[s]] = u->dist[u->small[s]];
-        u->aweight[u->small[s]] = 0;
-    }
-}
 
 aliurn_t* aliurn_create(ullong seed, ullong ncolors, ldouble alpha, ldouble beta) {
     if(alpha <= 0 || alpha >= 1 || beta <= 1 || ncolors == ULLONG_MAX) {
@@ -67,8 +24,9 @@ aliurn_t* aliurn_create(ullong seed, ullong ncolors, ldouble alpha, ldouble beta
     u->nmarbles = 0;
     u->alpha    = alpha;
     u->beta     = beta;
+    u->lbound   = 0;
+    u->rbound   = 0;
 
-    u->rweight = 0;
     u->min_rweight = 0;
     u->max_rweight = 0;
 
@@ -77,6 +35,7 @@ aliurn_t* aliurn_create(ullong seed, ullong ncolors, ldouble alpha, ldouble beta
             return NULL;
         if((u->aweight = (ullong*) calloc(u->ncolors, sizeof(ullong)))  == NULL)
             return NULL;
+        // Important to zero alias, as rebuild assumes this
         if((u->alias   = (ullong*) calloc(u->ncolors, sizeof(ullong)))  == NULL)
             return NULL;
 
@@ -92,11 +51,35 @@ aliurn_t* aliurn_create(ullong seed, ullong ncolors, ldouble alpha, ldouble beta
 
     return u;
 }
-void aliurn_insert(aliurn_t* u, ullong* dist) {
+
+aliurn_t* aliurn_copy(aliurn_t* u, ullong seed) {
+    aliurn_t* ucopy = aliurn_create(seed, u->ncolors, u->alpha, u->beta);
+    if(ucopy == NULL) return NULL;
+
+    ucopy->nmarbles = u->nmarbles;
+    ucopy->lbound   = u->lbound;
+    ucopy->rbound   = u->rbound;
+    ucopy->min_rweight = u->min_rweight;
+    ucopy->max_rweight = u->max_rweight;
+
+    if(u->ncolors > 0) {
+        memcpy(ucopy->weight,  u->weight,  u->ncolors * sizeof(ullong));
+        memcpy(ucopy->aweight, u->aweight, u->ncolors * sizeof(ullong));
+        memcpy(ucopy->alias,   u->alias,   u->ncolors * sizeof(ullong));
+
+        memcpy(ucopy->dist,  u->dist,  u->ncolors * sizeof(ullong));
+        memcpy(ucopy->small, u->small, u->ncolors * sizeof(ullong));
+        memcpy(ucopy->large, u->large, u->ncolors * sizeof(ullong));
+    }
+    
+    return ucopy;
+}
+
+void aliurn_insert(aliurn_t* u, ullong* qs) {
     for(ullong c = 0; c < u->ncolors; ++c) {
-        u->weight[c]  += dist[c];
+        u->weight[c]  += qs[c];
         u->max_rweight = ALIURN_MAX(u->weight[c] + u->aweight[c], u->max_rweight);
-        u->nmarbles   += dist[c];
+        u->nmarbles   += qs[c];
     }
 
     aliurn_rebuild(u);
@@ -130,13 +113,15 @@ void aliurn_dist(aliurn_t* u, ullong* dist) {
 }
 
 void aliurn_destroy(aliurn_t* u) {
-    free(u->weight);
-    free(u->aweight);
-    free(u->alias);
+    if(u->ncolors > 0) {
+        free(u->weight);
+        free(u->aweight);
+        free(u->alias);
 
-    free(u->dist);
-    free(u->small);
-    free(u->large);
+        free(u->dist);
+        free(u->small);
+        free(u->large);
+    }
 
     free(u);
 }

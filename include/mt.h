@@ -135,7 +135,7 @@ static inline ullong mt_urand(mt_t* mt, ullong n) {
     ullong x = mt_rand(mt);
     while(x <= min)
         x = mt_rand(mt);
-    return x;
+    return x % n;
 }
 
 /*

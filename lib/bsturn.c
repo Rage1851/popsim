@@ -5,6 +5,7 @@
  */
 
 #include "bsturn.h"
+#include "mt.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -29,6 +30,8 @@ bsturn_t* bsturn_create(ullong seed, ullong ncolors) {
     u->nmarbles = 0;
     if((u->bst = (ullong*) calloc(u->nnodes, sizeof(ullong))) == NULL)
         return NULL;
+
+    mt_init(&(u->mt), seed);
 
     return u;
 }
